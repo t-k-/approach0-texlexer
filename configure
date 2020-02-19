@@ -1,0 +1,93 @@
+#!/usr/bin/python3
+import getopt, sys, os
+
+default_indri_path = 'indri-5.11'
+default_jieba_path = 'cppjieba'
+
+config_mk   = 'config.mk'
+proj_dep_mk = 'proj-dep.mk'
+proj_dep_py = 'proj-dep.py'
+targets_mk  = 'targets.mk'
+srclist_txt = 'srclist.txt'
+py = 'python3'
+
+def help(arg0):
+	print('DESCRIPTION: build configuration setup.' \
+	      '\n' \
+	      'SYNOPSIS:\n' \
+	      '%s [-h | --help] ' \
+	      '[--indri-path=<Indri source path>] ' \
+	      '[--jieba-path=<CppJieba source path>] ' \
+	      '[--clean] ' \
+	      '\n' \
+	      % (arg0))
+	sys.exit(1)
+
+def main():
+	cmd = sys.argv[0]
+	args = sys.argv[1:]
+	HOME = os.environ['HOME']
+
+	indri_path = "{}/{}".format(HOME, default_indri_path)
+	jieba_path = "{}/{}".format(HOME, default_jieba_path)
+
+	try:
+		opts, args = getopt.getopt(sys.argv[1:], "h", [
+                    'help',
+                    'indri-path=',
+                    'jieba-path=',
+                    'clean']
+                )
+	except:
+		help(cmd)
+
+	for opt, arg in opts:
+		if opt in ("-h", "--help"):
+			help(cmd)
+		if opt in ("--indri-path"):
+			indri_path = os.path.abspath(arg.replace('~', HOME))
+		if opt in ("--jieba-path"):
+			jieba_path = os.path.abspath(arg.replace('~', HOME))
+		if opt in ("--clean"):
+			os.system('rm -f ' + targets_mk)
+			os.system('rm -f ' + config_mk)
+			os.system('rm -f ' + proj_dep_mk)
+			os.system('rm -f ' + srclist_txt)
+			print('done clean.')
+			sys.exit(0)
+
+        # checking dependency path
+	if not os.path.exists(indri_path):
+		print("Error: directory '%s' does not exists." % (indri_path))
+		exit(1)
+
+	if not os.path.exists(jieba_path):
+		print("Error: directory '%s' does not exists." % (jieba_path))
+		exit(1)
+
+        # write dependency path .mk file
+	print('Use Indri path: {}'.format(indri_path), end="\n\n")
+	print('Use Jieba path: {}'.format(jieba_path), end="\n\n")
+
+	f = open(config_mk, 'w')
+	f.write("INDRI=%s\n" % (indri_path))
+	f.write("JIEBA=%s\n" % (jieba_path))
+	f.close()
+
+        # prepare building
+	print('Build targets:')
+	os.system(py + ' %s --targets | tee %s' % (proj_dep_py, targets_mk))
+	print('')
+
+	print('Generating proj-dep.mk:')
+	os.system(py + ' %s --proj-dep | tee %s' % (proj_dep_py, proj_dep_mk))
+	print('')
+
+	print('Check external library dependencies:')
+	os.system(py + ' %s --check-dep' % (proj_dep_py))
+	print('')
+
+	print('[configuration done]')
+
+if __name__ == "__main__":
+	main()
